@@ -249,17 +249,34 @@ async def link_contact_to_deal(
     contact_id: str,
 ) -> bool:
     """
-    Fallback: vincula contato ao deal. RD CRM v1 expoe esse vinculo via
-    PUT /deals/{id} com contacts top-level (mesma estrutura do POST).
+    Vincula contato ao deal. RD CRM v1 nao expoe um campo de contacts
+    confiavel no POST /deals — a vinculacao mais robusta e' via PUT no
+    contato, adicionando o deal_id na lista deal_ids do contato.
     """
-    payload = {"contacts": [{"_id": contact_id}]}
+    # 1. Buscar contato pra ler deal_ids existentes
     try:
-        r = await client.put(f"{_BASE}/deals/{deal_id}", params=_params(), json=payload)
+        r = await client.get(f"{_BASE}/contacts/{contact_id}", params=_params())
+        if r.status_code != 200:
+            logger.warning(f"[RD CRM] GET /contacts/{contact_id} retornou {r.status_code}")
+            return False
+        contact = r.json()
+    except Exception as e:
+        logger.warning(f"[RD CRM] Falha ao GET contato {contact_id}: {e}")
+        return False
+
+    deal_ids = list(contact.get("deal_ids") or [])
+    if deal_id in deal_ids:
+        return True  # ja vinculado
+
+    deal_ids.append(deal_id)
+    payload = {"deal_ids": deal_ids}
+    try:
+        r = await client.put(f"{_BASE}/contacts/{contact_id}", params=_params(), json=payload)
         if r.status_code in (200, 201, 204):
-            logger.info(f"[RD CRM] Contato {contact_id} vinculado ao deal {deal_id} via PUT")
+            logger.info(f"[RD CRM] Contato {contact_id} agora linka {len(deal_ids)} deal(s) (incluindo {deal_id})")
             return True
         logger.warning(
-            f"[RD CRM] PUT /deals/{deal_id} (link contact) retornou {r.status_code}: {r.text[:300]}"
+            f"[RD CRM] PUT /contacts/{contact_id} (deal_ids) retornou {r.status_code}: {r.text[:300]}"
         )
     except Exception as e:
         logger.warning(f"[RD CRM] Falha ao vincular contato ao deal {deal_id}: {e}")
@@ -371,20 +388,15 @@ async def upsert_contact_and_create_deal(
             deal_envelope = {}
         deal_id = (deal_envelope.get("_id") or deal_envelope.get("id")) if isinstance(deal_envelope, dict) else None
 
-        # Fallback 1: vincular contato ao deal via PUT, caso o POST nao tenha
-        # vinculado automaticamente (alguns tenants do RD CRM exigem)
+        # SEMPRE vincular contato ao deal via PUT no contato — POST /deals
+        # ignora 'contacts' no payload no RD CRM v1 (testado: nunca cria vinculo).
         if deal_id and contact_id:
-            contacts_in_deal = deal_envelope.get("contacts") if isinstance(deal_envelope, dict) else None
-            has_link = bool(contacts_in_deal) if isinstance(contacts_in_deal, list) else False
-            if not has_link:
-                await link_contact_to_deal(client, deal_id=deal_id, contact_id=contact_id)
+            await link_contact_to_deal(client, deal_id=deal_id, contact_id=contact_id)
 
-        # Fallback 2: se description nao foi aceita pela API mas conseguimos
-        # criar o deal, anexa como deal_note separado.
+        # SEMPRE criar deal_note com a description — o campo 'note' no payload
+        # do POST /deals tambem e' ignorado. /deal_notes e' o endpoint dedicado.
         if deal_id and description:
-            desc_in_deal = (deal_envelope.get("description") or "").strip() if isinstance(deal_envelope, dict) else ""
-            if not desc_in_deal:
-                await create_deal_note(client, deal_id=deal_id, content=description)
+            await create_deal_note(client, deal_id=deal_id, content=description)
 
         return {
             "contact_id": contact_id,
