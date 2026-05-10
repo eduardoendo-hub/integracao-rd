@@ -22,21 +22,18 @@ CampaignConfig = dict
 CAMPAIGNS: dict[str, CampaignConfig] = {
     # Lançamento Maio/2026 da Formação Claude Pro
     "claude-pro-maio-2026": {
-        "funnel_id":     "TODO_funnel_id",        # preencher com ID do funil "Curso Claude Pro" no RD CRM
-        "deal_stage_id": "TODO_deal_stage_id",    # preencher com ID da etapa "Lead novo"
+        "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"
+        "deal_stage_id": "6894b0eb767596001722fd21",  # "Aguardando Atendimento"
         "deal_name_tpl": "Curso Claude Pro — {name}",
         "tags":          ["lp:claude-pro", "campanha:maio-2026"],
-        # Custom fields aplicados ao deal no momento de criação.
-        # Os placeholders {field} são interpolados com dados do payload (utm.x, perfil, extras).
-        "custom_fields": {
-            "cf_campanha":     "Claude Pro Maio 2026",
-            "cf_perfil":       "{perfil}",
-            "cf_utm_source":   "{utm.source}",
-            "cf_utm_medium":   "{utm.medium}",
-            "cf_utm_campaign": "{utm.campaign}",
-            "cf_utm_content":  "{utm.content}",
-            "cf_source_page":  "{source_page}",
-        },
+        # Custom fields ficam vazios por padrão. UTMs e demais metadados vão para o
+        # IRIS via webhook (POST /api/webhook/rd) — onde são salvos no model `Lead`
+        # e exibidos no painel comercial. Para anexar custom fields ao deal RD CRM:
+        #   1. Em RD CRM → Configurações → Campos personalizados → criar campos
+        #      (ex.: "UTM Source", "Perfil") e copiar os IDs.
+        #   2. Adicionar abaixo no formato {"<custom_field_id>": "{utm.source}"}
+        #      (placeholders {field} são interpolados pelo serviço).
+        "custom_fields": {},
     },
 }
 
