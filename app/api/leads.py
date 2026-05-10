@@ -10,14 +10,24 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+_CHANNEL_LABELS = {
+    "form":     "Formulário",
+    "whatsapp": "WhatsApp",
+    "email":    "E-mail",
+    "phone":    "Telefone",
+}
+
+
 def _interpolate(template: str, lead: LeadIn) -> str:
-    """Resolve placeholders {name}, {perfil}, {utm.source}, etc. a partir do payload."""
+    """Resolve placeholders {name}, {perfil}, {channel}, {utm.source}, etc."""
     if not isinstance(template, str) or "{" not in template:
         return template
     out = template
     out = out.replace("{name}", lead.name or "")
     out = out.replace("{perfil}", lead.perfil or "")
     out = out.replace("{source_page}", lead.source_page or "")
+    out = out.replace("{channel}", lead.channel or "form")
+    out = out.replace("{channel_label}", _CHANNEL_LABELS.get(lead.channel or "form", lead.channel or ""))
     if lead.utm:
         out = out.replace("{utm.source}",   lead.utm.source or "")
         out = out.replace("{utm.medium}",   lead.utm.medium or "")
@@ -43,7 +53,12 @@ async def create_lead(lead: LeadIn) -> LeadOut:
 
     deal_name = _interpolate(cfg.get("deal_name_tpl", "Lead — {name}"), lead)
     custom_fields = _resolve_custom_fields(cfg.get("custom_fields", {}), lead)
-    tags = cfg.get("tags") or []
+    # Tags do registry sao interpoladas (suportam {channel}). Adiciona tag de
+    # canal automatica para qualquer canal nao explicitado no registry.
+    tags = [_interpolate(t, lead) for t in (cfg.get("tags") or [])]
+    canal_tag = "canal:" + (lead.channel or "form")
+    if canal_tag not in tags:
+        tags.append(canal_tag)
 
     result = await rd_crm.upsert_contact_and_create_deal(
         name=lead.name,
@@ -57,13 +72,14 @@ async def create_lead(lead: LeadIn) -> LeadOut:
 
     iris_webhook.emit("lead.created", {
         "campaign_slug": lead.campaign_slug,
-        "name":   lead.name,
-        "email":  lead.email,
-        "phone":  lead.phone,
-        "perfil": lead.perfil,
-        "utm":    lead.utm.model_dump() if lead.utm else None,
+        "name":    lead.name,
+        "email":   lead.email,
+        "phone":   lead.phone,
+        "perfil":  lead.perfil,
+        "channel": lead.channel,
+        "utm":     lead.utm.model_dump() if lead.utm else None,
         "source_page": lead.source_page,
-        "rd_crm": result,
+        "rd_crm":  result,
     })
 
     logger.info(

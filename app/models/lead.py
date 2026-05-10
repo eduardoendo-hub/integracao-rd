@@ -17,6 +17,10 @@ class LeadIn(BaseModel):
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     perfil: Optional[str] = None
+    # Canal pelo qual o lead chegou: "form" (form da LP), "whatsapp" (clique
+    # no fab WhatsApp), "email" (resposta a email), etc. Resolvido em tags
+    # e no nome do deal via {channel} no registry.
+    channel: Optional[str] = "form"
     utm: Optional[UTM] = None
     source_page: Optional[str] = None
     extra: dict = Field(default_factory=dict)

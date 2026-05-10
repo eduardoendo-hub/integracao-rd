@@ -42,7 +42,9 @@ def test_get_campaign_config():
     data = r.json()
     assert "funnel_id" in data
     assert "deal_stage_id" in data
-    assert data["deal_name_tpl"].startswith("Curso Claude Pro")
+    assert "{name}" in data["deal_name_tpl"]
+    assert "LP - Curso Claude" in data["deal_name_tpl"]
+    assert "origem:LP-Curso-Claude" in data.get("tags", [])
 
 
 def test_get_unknown_campaign_404():
