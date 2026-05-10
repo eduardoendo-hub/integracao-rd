@@ -205,20 +205,23 @@ async def create_deal(
         "name": deal_name,
     }
     if description:
-        deal_obj["description"] = description
+        # 'note' (singular) é o campo que aparece como "Anotações" no Deal do RD CRM v1.
+        # 'description' não aparecia em testes anteriores.
+        deal_obj["note"] = description
     if custom_fields:
         deal_obj["deal_custom_fields"] = [
             {"custom_field_id": k, "value": v} for k, v in custom_fields.items() if v
         ]
+    if tags:
+        # tags em CRM v1 normalmente vão em campain/contact, mas tentamos no deal também
+        deal_obj["tags"] = tags
 
-    # RD CRM v1 aceita contacts como [{"_id": "<id>"}] (campo com underscore).
-    # Tentando "id" sem underscore o vinculo nao e' criado mesmo respondendo 201.
+    # RD CRM v1: contacts vai TOP-LEVEL do payload (irmão de deal), não dentro
+    # do deal. Formato esperado: [{"_id": "<id>"}] (com underscore).
     payload = {
         "deal":     deal_obj,
         "contacts": [{"_id": contact_id}],
     }
-    if tags:
-        payload["tags"] = tags
 
     try:
         r = await client.post(f"{_BASE}/deals", params=_params(), json=payload)
@@ -246,16 +249,18 @@ async def link_contact_to_deal(
     contact_id: str,
 ) -> bool:
     """
-    Fallback: vincula contato ao deal via PUT /deals/{id}.
-    Usado caso a vinculacao via POST /deals nao tenha pegado.
+    Fallback: vincula contato ao deal. RD CRM v1 expoe esse vinculo via
+    PUT /deals/{id} com contacts top-level (mesma estrutura do POST).
     """
-    payload = {"deal": {"contacts": [{"_id": contact_id}]}}
+    payload = {"contacts": [{"_id": contact_id}]}
     try:
         r = await client.put(f"{_BASE}/deals/{deal_id}", params=_params(), json=payload)
         if r.status_code in (200, 201, 204):
             logger.info(f"[RD CRM] Contato {contact_id} vinculado ao deal {deal_id} via PUT")
             return True
-        logger.warning(f"[RD CRM] PUT /deals/{deal_id} (link contact) retornou {r.status_code}: {r.text[:200]}")
+        logger.warning(
+            f"[RD CRM] PUT /deals/{deal_id} (link contact) retornou {r.status_code}: {r.text[:300]}"
+        )
     except Exception as e:
         logger.warning(f"[RD CRM] Falha ao vincular contato ao deal {deal_id}: {e}")
     return False
