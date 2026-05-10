@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import debug, health, leads
+from app.api import debug, health, leads, pixel
 from app.core.config import settings
 
 logging.basicConfig(
@@ -28,3 +28,4 @@ app.add_middleware(
 app.include_router(health.router, prefix="/api")
 app.include_router(leads.router, prefix="/api")
 app.include_router(debug.router, prefix="/api")
+app.include_router(pixel.router, prefix="/api")

@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     iris_webhook_secret: str = ""
     allowed_origins: str = "http://localhost:3000"
     log_level: str = "INFO"
+    # Meta CAPI: pra enviar eventos server-side para o Pixel.
+    # Deixar vazio se nao quer usar CAPI (LP usa apenas Pixel client-side).
+    meta_pixel_id: str = ""
+    meta_capi_token: str = ""
 
     @property
     def allowed_origins_list(self) -> list[str]:
