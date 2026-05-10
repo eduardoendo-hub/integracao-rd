@@ -302,17 +302,33 @@ async def create_deal_note(
     content: str,
 ) -> bool:
     """
-    Anexa uma nota ao deal via /deal_notes. Usado como fallback caso
-    description não apareça no UI do RD CRM (depende da configuração).
+    Anexa uma nota/atividade ao deal. RD CRM v1 usa /activities como
+    endpoint canonico para notas (BOT-SDR-PJ confirmado). Tenta varios
+    formatos pq a doc do RD CRM v1 e' inconsistente:
+
+      1) POST /activities  com {activity: {deal_id, text, type:"note"}}
+      2) POST /deal_notes  com {deal_note: {deal_id, content}}
+      3) POST /deal_notes  com {deal_id, content}   (sem envelope)
+
+    Retorna True na primeira que responder 200/201.
     """
-    payload = {"deal_note": {"deal_id": deal_id, "content": content}}
-    try:
-        r = await client.post(f"{_BASE}/deal_notes", params=_params(), json=payload)
-        if r.status_code in (200, 201):
-            return True
-        logger.warning(f"[RD CRM] POST /deal_notes retornou {r.status_code}: {r.text[:200]}")
-    except Exception as e:
-        logger.warning(f"[RD CRM] Falha ao criar deal_note: {e}")
+    attempts = [
+        (f"{_BASE}/activities", {"activity": {"deal_id": deal_id, "text": content, "type": "note"}}),
+        (f"{_BASE}/activities", {"deal_id": deal_id, "text": content, "type": "note"}),
+        (f"{_BASE}/deal_notes", {"deal_note": {"deal_id": deal_id, "content": content}}),
+        (f"{_BASE}/deal_notes", {"deal_id": deal_id, "content": content}),
+    ]
+    for url, payload in attempts:
+        try:
+            r = await client.post(url, params=_params(), json=payload)
+            if r.status_code in (200, 201):
+                logger.info(f"[RD CRM] Nota criada via {url} payload_keys={list(payload.keys())}")
+                return True
+            logger.warning(
+                f"[RD CRM] {url} retornou {r.status_code}: {r.text[:200]}"
+            )
+        except Exception as e:
+            logger.warning(f"[RD CRM] Falha em {url}: {e}")
     return False
 
 
