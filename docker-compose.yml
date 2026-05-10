@@ -1,11 +1,11 @@
 services:
   integracao-rd:
     build:
-      context: ..
-      dockerfile: docker/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     image: integracao-rd:local
     ports:
       - "8000:8000"
     env_file:
-      - ../.env
+      - .env
     restart: unless-stopped

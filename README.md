@@ -99,10 +99,11 @@ curl -X POST http://localhost:8000/api/leads \
 ## Deploy no Coolify
 
 1. Criar nova aplicação Docker → apontar para o repo Git deste projeto.
-2. Build pack: `docker/Dockerfile`.
+2. Build pack: **Dockerfile** (na raiz do repo — Coolify acha automaticamente).
 3. Configurar env vars na UI do Coolify.
 4. Domínio: `rd.impacta.com.br` (HTTPS automático via Coolify/Traefik).
 5. Healthcheck: `GET /api/healthz`.
+6. Port: `8000`.
 
 ## Padrão de referência
 
