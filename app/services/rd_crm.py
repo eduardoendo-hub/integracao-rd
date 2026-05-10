@@ -114,7 +114,8 @@ async def create_contact(
     phone: Optional[str],
 ) -> Optional[dict]:
     """Cria contato no RD CRM. Retorna o objeto criado ou None em falha."""
-    payload: dict = {"name": name or (email.split("@")[0] if email else "Lead sem nome")}
+    safe_name = name or (email.split("@")[0] if email else "Lead sem nome")
+    payload: dict = {"name": safe_name}
     if email:
         payload["emails"] = [{"email": email}]
     if phone:
@@ -123,12 +124,58 @@ async def create_contact(
     try:
         r = await client.post(f"{_BASE}/contacts", params=_params(), json=payload)
         if r.status_code in (200, 201):
+            logger.info(f"[RD CRM] Contato criado: name='{safe_name}' email='{email}' phone='{phone}'")
             return r.json()
         logger.warning(f"[RD CRM] POST /contacts retornou {r.status_code}: {r.text[:300]}")
         return None
     except Exception as e:
         logger.error(f"[RD CRM] Erro ao criar contato: {e}")
         return None
+
+
+async def update_contact_if_missing(
+    client: httpx.AsyncClient,
+    *,
+    contact_id: str,
+    contact_obj: dict,
+    name: Optional[str],
+    email: Optional[str],
+    phone: Optional[str],
+) -> None:
+    """
+    Se o contato existente está sem nome/email/phone que recebemos do form,
+    faz PATCH para incrementar (NUNCA sobrescreve dados existentes).
+    Útil quando achamos um contato antigo com phone e o form trouxe email novo
+    (ou vice-versa).
+    """
+    patch: dict = {}
+
+    existing_emails = contact_obj.get("emails") or []
+    has_email = any((e.get("email") or "").strip() for e in existing_emails) if isinstance(existing_emails, list) else False
+    if email and not has_email:
+        patch["emails"] = [{"email": email}]
+
+    existing_phones = contact_obj.get("phones") or []
+    has_phone = any((p.get("phone") or "").strip() for p in existing_phones) if isinstance(existing_phones, list) else False
+    if phone and not has_phone:
+        patch["phones"] = [{"phone": phone, "type": "cellphone"}]
+
+    existing_name = (contact_obj.get("name") or "").strip()
+    is_placeholder = (not existing_name) or existing_name.lower() in ("lead sem nome", "lead", "?")
+    if name and is_placeholder:
+        patch["name"] = name
+
+    if not patch:
+        return  # nada a atualizar
+
+    try:
+        r = await client.put(f"{_BASE}/contacts/{contact_id}", params=_params(), json=patch)
+        if r.status_code in (200, 201, 204):
+            logger.info(f"[RD CRM] Contato {contact_id} incrementado com {list(patch.keys())}")
+        else:
+            logger.warning(f"[RD CRM] PUT /contacts/{contact_id} retornou {r.status_code}: {r.text[:200]}")
+    except Exception as e:
+        logger.warning(f"[RD CRM] Falha ao atualizar contato {contact_id}: {e}")
 
 
 async def create_deal(
@@ -139,20 +186,26 @@ async def create_deal(
     deal_stage_id: str,
     custom_fields: Optional[dict] = None,
     tags: Optional[list[str]] = None,
+    description: Optional[str] = None,
 ) -> Optional[dict]:
     """
     Cria deal no funil/etapa configurados.
 
     O endpoint `POST /deals` exige um payload aninhado:
       {
-        "deal":     { "deal_stage_id": "...", "name": "..." },
+        "deal":     { "deal_stage_id": "...", "name": "...", "description": "..." },
         "contacts": [ { "id": "<contact_id>" } ]
       }
+
+    `description` aparece como texto principal/anotações no Deal — onde o
+    vendedor lê os dados detalhados do lead (nome, email, phone, UTM).
     """
     deal_obj: dict = {
         "deal_stage_id": deal_stage_id,
         "name": deal_name,
     }
+    if description:
+        deal_obj["description"] = description
     if custom_fields:
         deal_obj["deal_custom_fields"] = [
             {"custom_field_id": k, "value": v} for k, v in custom_fields.items() if v
@@ -176,6 +229,27 @@ async def create_deal(
         return None
 
 
+async def create_deal_note(
+    client: httpx.AsyncClient,
+    *,
+    deal_id: str,
+    content: str,
+) -> bool:
+    """
+    Anexa uma nota ao deal via /deal_notes. Usado como fallback caso
+    description não apareça no UI do RD CRM (depende da configuração).
+    """
+    payload = {"deal_note": {"deal_id": deal_id, "content": content}}
+    try:
+        r = await client.post(f"{_BASE}/deal_notes", params=_params(), json=payload)
+        if r.status_code in (200, 201):
+            return True
+        logger.warning(f"[RD CRM] POST /deal_notes retornou {r.status_code}: {r.text[:200]}")
+    except Exception as e:
+        logger.warning(f"[RD CRM] Falha ao criar deal_note: {e}")
+    return False
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # High-level: upsert contact + create deal
 # ─────────────────────────────────────────────────────────────────────────────
@@ -189,9 +263,12 @@ async def upsert_contact_and_create_deal(
     deal_stage_id: str,
     custom_fields: Optional[dict] = None,
     tags: Optional[list[str]] = None,
+    description: Optional[str] = None,
 ) -> dict:
     """
     Garante contato (busca por phone, depois email; cria se necessário) e cria deal.
+    Se o contato já existir mas estiver sem name/email/phone, faz PATCH para
+    incrementar com os dados que vieram do form (sem sobrescrever existentes).
 
     Retorna {contact_id, deal_id, status}, onde status é "created" (deal criado) ou
     "skipped" (sem token / falha).
@@ -218,6 +295,16 @@ async def upsert_contact_and_create_deal(
         if not contact_id:
             return {"contact_id": None, "deal_id": None, "status": "skipped"}
 
+        # Se o contato existia mas estava sem dados, incrementa
+        await update_contact_if_missing(
+            client,
+            contact_id=contact_id,
+            contact_obj=contact,
+            name=name,
+            email=email,
+            phone=norm_phone,
+        )
+
         deal = await create_deal(
             client,
             deal_name=deal_name,
@@ -225,8 +312,20 @@ async def upsert_contact_and_create_deal(
             deal_stage_id=deal_stage_id,
             custom_fields=custom_fields,
             tags=tags,
+            description=description,
         )
         deal_id = (deal.get("_id") or deal.get("id")) if deal else None
+
+        # Fallback: se description nao foi aceita pela API mas conseguimos
+        # criar o deal, anexa como deal_note separado.
+        if deal_id and description:
+            try:
+                deal_obj = deal.get("deal") if isinstance(deal.get("deal"), dict) else deal
+                desc_in_deal = (deal_obj.get("description") or "").strip() if isinstance(deal_obj, dict) else ""
+            except Exception:
+                desc_in_deal = ""
+            if not desc_in_deal:
+                await create_deal_note(client, deal_id=deal_id, content=description)
 
         return {
             "contact_id": contact_id,

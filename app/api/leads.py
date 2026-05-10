@@ -44,6 +44,46 @@ def _resolve_custom_fields(template: dict, lead: LeadIn) -> dict:
     return {k: _interpolate(v, lead) for k, v in (template or {}).items()}
 
 
+def _build_lead_description(lead: LeadIn) -> str:
+    """
+    Texto que vai como `description` do Deal no RD CRM. Vendedor abre o Deal
+    e ja ve TODOS os dados que o lead deixou no formulario, sem precisar
+    abrir o contato vinculado.
+    """
+    chan = _CHANNEL_LABELS.get(lead.channel or "form", lead.channel or "Formulário")
+    lines = [
+        f"📥 Lead capturado via LP - Curso Claude Pro [{chan}]",
+        "",
+        "DADOS DO LEAD",
+        f"  Nome:     {lead.name or '(não informado)'}",
+        f"  E-mail:   {lead.email or '(não informado)'}",
+        f"  WhatsApp: {lead.phone or '(não informado)'}",
+    ]
+    if lead.perfil:
+        lines.append(f"  Perfil:   {lead.perfil}")
+    if lead.source_page:
+        lines.append("")
+        lines.append(f"PÁGINA DE ORIGEM")
+        lines.append(f"  {lead.source_page}")
+    if lead.utm and any([lead.utm.source, lead.utm.medium, lead.utm.campaign,
+                         lead.utm.content, lead.utm.term]):
+        lines.append("")
+        lines.append("UTM (campanha de mídia)")
+        if lead.utm.source:   lines.append(f"  source:   {lead.utm.source}")
+        if lead.utm.medium:   lines.append(f"  medium:   {lead.utm.medium}")
+        if lead.utm.campaign: lines.append(f"  campaign: {lead.utm.campaign}")
+        if lead.utm.content:  lines.append(f"  content:  {lead.utm.content}")
+        if lead.utm.term:     lines.append(f"  term:     {lead.utm.term}")
+    if lead.extra:
+        clean = {k: v for k, v in lead.extra.items() if v}
+        if clean:
+            lines.append("")
+            lines.append("EXTRA")
+            for k, v in clean.items():
+                lines.append(f"  {k}: {v}")
+    return "\n".join(lines)
+
+
 @router.post("/leads", response_model=LeadOut)
 async def create_lead(lead: LeadIn) -> LeadOut:
     """Recebe um Lead de qualquer LP, cria Contact+Deal no RD CRM e notifica o IRIS."""
@@ -60,6 +100,8 @@ async def create_lead(lead: LeadIn) -> LeadOut:
     if canal_tag not in tags:
         tags.append(canal_tag)
 
+    description = _build_lead_description(lead)
+
     result = await rd_crm.upsert_contact_and_create_deal(
         name=lead.name,
         email=lead.email,
@@ -68,6 +110,7 @@ async def create_lead(lead: LeadIn) -> LeadOut:
         deal_stage_id=cfg["deal_stage_id"],
         custom_fields=custom_fields,
         tags=tags,
+        description=description,
     )
 
     iris_webhook.emit("lead.created", {
