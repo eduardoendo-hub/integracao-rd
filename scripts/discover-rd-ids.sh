@@ -34,24 +34,43 @@ for p in items:
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
-echo "  STAGES (etapas) — agrupadas por pipeline"
+echo "  STAGES (etapas) — uma chamada por pipeline"
 echo "═══════════════════════════════════════════════════════════════"
-curl -sf "$BASE/deal_stages?token=$TOKEN" \
+# A API /deal_stages SEM filtro retorna stages de apenas UM pipeline
+# (default). Iteramos sobre cada pipeline e buscamos suas stages
+# especificamente via ?deal_pipeline_id=
+PIPELINE_LIST=$(curl -sf "$BASE/deal_pipelines?token=$TOKEN" \
   | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
-items = data if isinstance(data, list) else data.get('deal_stages', [])
-by_pipeline = {}
-for s in items:
-    pid = s.get('deal_pipeline_id', '?')
-    by_pipeline.setdefault(pid, []).append(s)
-for pid, stages in by_pipeline.items():
-    print(f'  Pipeline: {pid}')
-    for s in stages:
+items = data if isinstance(data, list) else data.get('deal_pipelines', [])
+for p in items:
+    pid = p.get('_id') or p.get('id')
+    name = p.get('name', '?')
+    print(pid + '|' + name)
+")
+
+while IFS='|' read -r PID PNAME; do
+  [ -z "$PID" ] && continue
+  echo ""
+  echo "  ─── $PNAME"
+  echo "      pipeline_id: $PID"
+  curl -sf "$BASE/deal_stages?token=$TOKEN&deal_pipeline_id=$PID" \
+    | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    items = data if isinstance(data, list) else data.get('deal_stages', [])
+    if not items:
+        print('      (sem stages)')
+    for s in items:
         sid = s.get('_id') or s.get('id')
         nome = s.get('name', '?')
-        print(f'    {sid}  →  {nome}')
+        print(f'      {sid}  →  {nome}')
+except Exception as e:
+    print(f'      (erro: {e})')
 "
+done <<< "$PIPELINE_LIST"
 
 echo ""
 echo "Próximo passo: copie o funnel_id e o deal_stage_id corretos para"
