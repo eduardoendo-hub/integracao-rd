@@ -23,7 +23,7 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
     # Lançamento Maio/2026 da Formação Claude Pro
     "claude-pro-maio-2026": {
         "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"
-        "deal_stage_id": "6894b0eb767596001722fd21",  # "Aguardando Atendimento"
+        "deal_stage_id": "6487550c634ed10022505f1a",  # "Aguardando atendimento" (DENTRO do B2C - Treinamentos)
         "deal_name_tpl": "Curso Claude Pro — {name}",
         "tags":          ["lp:claude-pro", "campanha:maio-2026"],
         # Custom fields ficam vazios por padrão. UTMs e demais metadados vão para o
