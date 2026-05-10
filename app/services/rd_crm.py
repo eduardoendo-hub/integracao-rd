@@ -211,9 +211,11 @@ async def create_deal(
             {"custom_field_id": k, "value": v} for k, v in custom_fields.items() if v
         ]
 
+    # RD CRM v1 aceita contacts como [{"_id": "<id>"}] (campo com underscore).
+    # Tentando "id" sem underscore o vinculo nao e' criado mesmo respondendo 201.
     payload = {
         "deal":     deal_obj,
-        "contacts": [{"id": contact_id}],
+        "contacts": [{"_id": contact_id}],
     }
     if tags:
         payload["tags"] = tags
@@ -221,12 +223,54 @@ async def create_deal(
     try:
         r = await client.post(f"{_BASE}/deals", params=_params(), json=payload)
         if r.status_code in (200, 201):
-            return r.json()
+            data = r.json()
+            # Loga o que o RD CRM retornou pra diagnosticar vinculacao
+            deal_obj_resp = data.get("deal") if isinstance(data.get("deal"), dict) else data
+            contacts_resp = data.get("contacts") or (deal_obj_resp.get("contacts") if isinstance(deal_obj_resp, dict) else None) or []
+            logger.info(
+                f"[RD CRM] Deal criado: id={(deal_obj_resp or {}).get('_id') or (deal_obj_resp or {}).get('id')} "
+                f"contacts_no_response={len(contacts_resp) if isinstance(contacts_resp, list) else '?'}"
+            )
+            return data
         logger.warning(f"[RD CRM] POST /deals retornou {r.status_code}: {r.text[:300]}")
         return None
     except Exception as e:
         logger.error(f"[RD CRM] Erro ao criar deal: {e}")
         return None
+
+
+async def link_contact_to_deal(
+    client: httpx.AsyncClient,
+    *,
+    deal_id: str,
+    contact_id: str,
+) -> bool:
+    """
+    Fallback: vincula contato ao deal via PUT /deals/{id}.
+    Usado caso a vinculacao via POST /deals nao tenha pegado.
+    """
+    payload = {"deal": {"contacts": [{"_id": contact_id}]}}
+    try:
+        r = await client.put(f"{_BASE}/deals/{deal_id}", params=_params(), json=payload)
+        if r.status_code in (200, 201, 204):
+            logger.info(f"[RD CRM] Contato {contact_id} vinculado ao deal {deal_id} via PUT")
+            return True
+        logger.warning(f"[RD CRM] PUT /deals/{deal_id} (link contact) retornou {r.status_code}: {r.text[:200]}")
+    except Exception as e:
+        logger.warning(f"[RD CRM] Falha ao vincular contato ao deal {deal_id}: {e}")
+    return False
+
+
+async def get_deal(client: httpx.AsyncClient, deal_id: str) -> Optional[dict]:
+    """GET /deals/{id} — usado por rota de debug."""
+    try:
+        r = await client.get(f"{_BASE}/deals/{deal_id}", params=_params())
+        if r.status_code == 200:
+            return r.json()
+        logger.warning(f"[RD CRM] GET /deals/{deal_id} retornou {r.status_code}")
+    except Exception as e:
+        logger.warning(f"[RD CRM] Erro ao buscar deal {deal_id}: {e}")
+    return None
 
 
 async def create_deal_note(
@@ -314,16 +358,26 @@ async def upsert_contact_and_create_deal(
             tags=tags,
             description=description,
         )
-        deal_id = (deal.get("_id") or deal.get("id")) if deal else None
+        # O RD CRM v1 retorna o deal com diferentes formatos de envelope.
+        # Buscamos tanto top-level quanto em data["deal"].
+        if isinstance(deal, dict):
+            deal_envelope = deal.get("deal") if isinstance(deal.get("deal"), dict) else deal
+        else:
+            deal_envelope = {}
+        deal_id = (deal_envelope.get("_id") or deal_envelope.get("id")) if isinstance(deal_envelope, dict) else None
 
-        # Fallback: se description nao foi aceita pela API mas conseguimos
+        # Fallback 1: vincular contato ao deal via PUT, caso o POST nao tenha
+        # vinculado automaticamente (alguns tenants do RD CRM exigem)
+        if deal_id and contact_id:
+            contacts_in_deal = deal_envelope.get("contacts") if isinstance(deal_envelope, dict) else None
+            has_link = bool(contacts_in_deal) if isinstance(contacts_in_deal, list) else False
+            if not has_link:
+                await link_contact_to_deal(client, deal_id=deal_id, contact_id=contact_id)
+
+        # Fallback 2: se description nao foi aceita pela API mas conseguimos
         # criar o deal, anexa como deal_note separado.
         if deal_id and description:
-            try:
-                deal_obj = deal.get("deal") if isinstance(deal.get("deal"), dict) else deal
-                desc_in_deal = (deal_obj.get("description") or "").strip() if isinstance(deal_obj, dict) else ""
-            except Exception:
-                desc_in_deal = ""
+            desc_in_deal = (deal_envelope.get("description") or "").strip() if isinstance(deal_envelope, dict) else ""
             if not desc_in_deal:
                 await create_deal_note(client, deal_id=deal_id, content=description)
 
