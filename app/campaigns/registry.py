@@ -22,6 +22,7 @@ CampaignConfig = dict
 CAMPAIGNS: dict[str, CampaignConfig] = {
     # Lançamento Maio/2026 da Formação Claude Pro
     "claude-pro-maio-2026": {
+        "product_label": "Curso Claude Pro",
         "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"
         "deal_stage_id": "6487550c634ed10022505f1a",  # "Aguardando atendimento" (DENTRO do B2C - Treinamentos)
         # Nome do deal no RD CRM. Inclui o canal de origem entre colchetes para
@@ -47,6 +48,7 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
     },
     # Lançamento Junho/2026 do Código Zero (Python, IA e Automação p/ Não Programadores)
     "codigozero-junho-2026": {
+        "product_label": "Código Zero",
         # Reaproveita o funil "B2C - Treinamentos" do Claude Pro. Vendas pode
         # apontar um funil/etapa dedicados — basta trocar os dois IDs abaixo.
         "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"

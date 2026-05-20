@@ -44,15 +44,16 @@ def _resolve_custom_fields(template: dict, lead: LeadIn) -> dict:
     return {k: _interpolate(v, lead) for k, v in (template or {}).items()}
 
 
-def _build_lead_description(lead: LeadIn) -> str:
+def _build_lead_description(lead: LeadIn, cfg: dict | None = None) -> str:
     """
     Texto que vai como `description` do Deal no RD CRM. Vendedor abre o Deal
     e ja ve TODOS os dados que o lead deixou no formulario, sem precisar
     abrir o contato vinculado.
     """
     chan = _CHANNEL_LABELS.get(lead.channel or "form", lead.channel or "Formulário")
+    product_label = (cfg.get("product_label") if cfg else None) or "Lead"
     lines = [
-        f"📥 Lead capturado via LP - Curso Claude Pro [{chan}]",
+        f"📥 Lead capturado via LP - {product_label} [{chan}]",
         "",
         "DADOS DO LEAD",
         f"  Nome:     {lead.name or '(não informado)'}",
@@ -100,7 +101,7 @@ async def create_lead(lead: LeadIn) -> LeadOut:
     if canal_tag not in tags:
         tags.append(canal_tag)
 
-    description = _build_lead_description(lead)
+    description = _build_lead_description(lead, cfg)
 
     result = await rd_crm.upsert_contact_and_create_deal(
         name=lead.name,
