@@ -1,8 +1,9 @@
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 
 from app.campaigns.registry import get_campaign
+from app.core.config import settings
 from app.models.lead import LeadIn, LeadOut, WhatsAppClickIn
 from app.services import iris_webhook, rd_crm
 
@@ -15,6 +16,7 @@ _CHANNEL_LABELS = {
     "whatsapp": "WhatsApp",
     "email":    "E-mail",
     "phone":    "Telefone",
+    "engaged":  "Cadastro Engaged",
 }
 
 
@@ -144,6 +146,25 @@ async def whatsapp_click(payload: WhatsAppClickIn) -> dict:
         "utm": payload.utm.model_dump() if payload.utm else None,
     })
     return {"status": "ok"}
+
+
+@router.delete("/deals/{deal_id}")
+async def delete_deal_endpoint(
+    deal_id: str,
+    x_iris_secret: str | None = Header(default=None),
+) -> dict:
+    """
+    Remove uma oportunidade do RD CRM. Chamado server-to-server pelo IRIS
+    quando um lead Engaged (que ganhou um deal ao se cadastrar) depois compra.
+
+    Auth: header X-Iris-Secret == settings.iris_webhook_secret (mesmo segredo
+    compartilhado usado nos webhooks IRIS↔integracao-rd). Endpoint destrutivo,
+    entao exige o segredo configurado — sem ele, 401.
+    """
+    if not settings.iris_webhook_secret or x_iris_secret != settings.iris_webhook_secret:
+        raise HTTPException(status_code=401, detail="unauthorized")
+    ok = await rd_crm.delete_deal(deal_id)
+    return {"status": "deleted" if ok else "failed", "deal_id": deal_id}
 
 
 @router.get("/campaigns/{slug}")

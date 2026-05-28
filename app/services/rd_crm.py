@@ -283,6 +283,34 @@ async def link_contact_to_deal(
     return False
 
 
+async def delete_deal(deal_id: str) -> bool:
+    """
+    Remove uma oportunidade (deal) do RD CRM: DELETE /deals/{id}.
+
+    Usado quando um lead que se cadastrou no Engaged (e ganhou um deal) depois
+    COMPRA — o comprador nao deve ficar com oportunidade aberta no funil de
+    vendas. Retorna True se removeu (ou se ja nao existia / 404).
+    """
+    if not settings.rd_crm_token:
+        logger.error("[RD CRM] RD_CRM_TOKEN ausente — delete_deal ignorado")
+        return False
+    if not deal_id:
+        return False
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        try:
+            r = await client.delete(f"{_BASE}/deals/{deal_id}", params=_params())
+            if r.status_code in (200, 204):
+                logger.info(f"[RD CRM] Deal {deal_id} removido")
+                return True
+            if r.status_code == 404:
+                logger.info(f"[RD CRM] Deal {deal_id} ja nao existe (404) — ok")
+                return True
+            logger.warning(f"[RD CRM] DELETE /deals/{deal_id} retornou {r.status_code}: {r.text[:200]}")
+        except Exception as e:
+            logger.error(f"[RD CRM] Erro ao remover deal {deal_id}: {e}")
+        return False
+
+
 async def get_deal(client: httpx.AsyncClient, deal_id: str) -> Optional[dict]:
     """GET /deals/{id} — usado por rota de debug."""
     try:
