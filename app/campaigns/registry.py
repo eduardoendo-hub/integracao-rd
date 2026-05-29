@@ -61,6 +61,22 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
         ],
         "custom_fields": {},
     },
+    # Lançamento Junho/2026 do ADV-IA (Inteligência Artificial aplicada ao Direito)
+    "advia-junho-2026": {
+        "product_label": "ADV-IA",
+        # Reaproveita o funil "B2C - Treinamentos". Vendas pode apontar um
+        # funil/etapa dedicados — basta trocar os dois IDs abaixo.
+        "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"
+        "deal_stage_id": "6487550c634ed10022505f1a",  # "Aguardando atendimento"
+        "deal_name_tpl": "LP - ADV-IA [{channel_label}] — {name}",
+        "tags":          [
+            "origem:LP-ADV-IA",
+            "lp:advia",
+            "campanha:junho-2026",
+            "publico:advogados",
+        ],
+        "custom_fields": {},
+    },
 }
 
 
