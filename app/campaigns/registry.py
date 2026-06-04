@@ -46,6 +46,22 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
         #      (placeholders {field} são interpolados pelo serviço).
         "custom_fields": {},
     },
+    # Lançamento Julho/2026 da Formação Claude Pro (Turma 2 — clone da de maio).
+    # A LP (tracking-config.json) passou a enviar este slug; sem esta entrada
+    # /api/leads retornaria 404 "Campanha desconhecida" e os leads parariam.
+    # Mesmo funil/etapa da maio — só muda a tag de campanha pra vendas filtrar.
+    "claude-pro-julho-2026": {
+        "product_label": "Curso Claude Pro",
+        "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"
+        "deal_stage_id": "6487550c634ed10022505f1a",  # "Aguardando atendimento"
+        "deal_name_tpl": "LP - Curso Claude [{channel_label}] — {name}",
+        "tags":          [
+            "origem:LP-Curso-Claude",
+            "lp:claude-pro",
+            "campanha:julho-2026",
+        ],
+        "custom_fields": {},
+    },
     # Lançamento Junho/2026 do Código Zero (Python, IA e Automação p/ Não Programadores)
     "codigozero-junho-2026": {
         "product_label": "Código Zero",
