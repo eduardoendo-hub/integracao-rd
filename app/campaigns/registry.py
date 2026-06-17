@@ -93,6 +93,35 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
         ],
         "custom_fields": {},
     },
+    # Hub Corporativo (B2B) — corporate.technowhub.ai / impacta.com.br/corporate.
+    # "Igual ao Claude": reaproveita o funil "B2C - Treinamentos". Pra um funil
+    # B2B dedicado, troque só os 2 IDs (funnel_id + deal_stage_id) abaixo.
+    "corporativo": {
+        "product_label": "Corporativo",
+        "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"
+        "deal_stage_id": "6487550c634ed10022505f1a",  # "Aguardando atendimento"
+        "deal_name_tpl": "LP - Corporativo [{channel_label}] — {name}",
+        "tags":          [
+            "origem:LP-Corporativo",
+            "lp:corporativo",
+            "b2b",
+        ],
+        "custom_fields": {},
+    },
+    # Página de IA Corporativa — ia-corporate / impacta.com.br/ia-corporate.
+    "corporativo-ia": {
+        "product_label": "IA Corporativa",
+        "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"
+        "deal_stage_id": "6487550c634ed10022505f1a",  # "Aguardando atendimento"
+        "deal_name_tpl": "LP - IA Corporativa [{channel_label}] — {name}",
+        "tags":          [
+            "origem:LP-IA-Corporativa",
+            "lp:corporativo-ia",
+            "b2b",
+            "tema:ia",
+        ],
+        "custom_fields": {},
+    },
 }
 
 
