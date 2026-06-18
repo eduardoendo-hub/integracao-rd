@@ -98,11 +98,8 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
     # B2B dedicado, troque só os 2 IDs (funnel_id + deal_stage_id) abaixo.
     "corporativo": {
         "product_label": "Corporativo",
-        "funnel_id":     "6894b0eb767596001722fd1f",  # funil B2B (id informado pelo usuário)
-        # ⚠️ deal_stage_id precisa ser o id da ETAPA de entrada do funil B2B.
-        # Se "6894b0eb767596001722fd1f" for o id do FUNIL (e não de uma etapa),
-        # o POST /deals falha — nesse caso trocar pelo id da 1ª etapa do funil.
-        "deal_stage_id": "6894b0eb767596001722fd1f",
+        "funnel_id":     "6894b0eb767596001722fd1f",  # "B2B - Corporativo"
+        "deal_stage_id": "6894b0eb767596001722fd21",  # "Aguardando Atendimento" (etapa de entrada)
         "deal_name_tpl": "LP - Corporativo [{channel_label}] — {name}",
         "tags":          [
             "origem:LP-Corporativo",
@@ -114,10 +111,8 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
     # Página de IA Corporativa — ia-corporate / impacta.com.br/ia-corporate.
     "corporativo-ia": {
         "product_label": "IA Corporativa",
-        "funnel_id":     "6894b0eb767596001722fd1f",  # funil B2B (mesmo do hub)
-        # ⚠️ ver nota em 'corporativo': se este id for do FUNIL e não da ETAPA,
-        # trocar pelo id da 1ª etapa do funil B2B.
-        "deal_stage_id": "6894b0eb767596001722fd1f",
+        "funnel_id":     "6894b0eb767596001722fd1f",  # "B2B - Corporativo" (mesmo do hub)
+        "deal_stage_id": "6894b0eb767596001722fd21",  # "Aguardando Atendimento" (etapa de entrada)
         "deal_name_tpl": "LP - IA Corporativa [{channel_label}] — {name}",
         "tags":          [
             "origem:LP-IA-Corporativa",
