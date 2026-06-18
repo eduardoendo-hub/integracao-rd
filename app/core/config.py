@@ -1,6 +1,16 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+# Origens SEMPRE liberadas (LPs da Impacta), independente do env. Evita o CORS
+# bloquear o /api/leads quando a LP roda nesses domínios.
+_BASELINE_ORIGINS = [
+    "https://corporate.technowhub.ai",
+    "https://ia-corporate.technowhub.ai",
+    "https://www.impacta.com.br",
+    "https://impacta.com.br",
+]
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -16,7 +26,9 @@ class Settings(BaseSettings):
 
     @property
     def allowed_origins_list(self) -> list[str]:
-        return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
+        env = [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
+        # une env + baseline, deduplicando e preservando ordem
+        return list(dict.fromkeys(env + _BASELINE_ORIGINS))
 
 
 settings = Settings()
