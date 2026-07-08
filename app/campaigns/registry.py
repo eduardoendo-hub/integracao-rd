@@ -63,6 +63,8 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
         "custom_fields": {},
     },
     # Lançamento Junho/2026 do Código Zero (Python, IA e Automação p/ Não Programadores)
+    # LEGADO: turma remarcada para 03/08/2026 — a LP agora envia
+    # "codigozero-agosto-2026". Entrada mantida por compat com leads em voo.
     "codigozero-junho-2026": {
         "product_label": "Código Zero",
         # Reaproveita o funil "B2C - Treinamentos" do Claude Pro. Vendas pode
@@ -74,6 +76,22 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
             "origem:LP-Codigo-Zero",
             "lp:codigozero",
             "campanha:junho-2026",
+        ],
+        "custom_fields": {},
+    },
+    # Turma Agosto/2026 do Código Zero (remarcação da de junho — início 03/08/2026).
+    # A LP (index.html) passou a enviar este slug; sem esta entrada /api/leads
+    # retornaria 404 "Campanha desconhecida" e os leads parariam. Mesmo funil/etapa
+    # da junho — só muda a tag de campanha pra vendas filtrar.
+    "codigozero-agosto-2026": {
+        "product_label": "Código Zero",
+        "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"
+        "deal_stage_id": "6487550c634ed10022505f1a",  # "Aguardando atendimento"
+        "deal_name_tpl": "LP - Código Zero [{channel_label}] — {name}",
+        "tags":          [
+            "origem:LP-Codigo-Zero",
+            "lp:codigozero",
+            "campanha:agosto-2026",
         ],
         "custom_fields": {},
     },
