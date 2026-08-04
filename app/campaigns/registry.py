@@ -63,7 +63,7 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
         "custom_fields": {},
     },
     # Turma 3 (Agosto/2026) da Formação Claude Pro — remarcação (início 03/08/2026).
-    # A LP passou a enviar este slug; sem esta entrada /api/leads retornaria 404.
+    # LEGADO: turma encerrada; mantida para leads em voo não caírem em 404.
     # Mesmo funil/etapa das anteriores — só muda a tag de campanha.
     "claude-pro-agosto-2026": {
         "product_label": "Curso Claude Pro",
@@ -74,6 +74,20 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
             "origem:LP-Curso-Claude",
             "lp:claude-pro",
             "campanha:agosto-2026",
+        ],
+        "custom_fields": {},
+    },
+    # Lançamento Setembro/2026 da Formação Claude Pro (Turma 4, 14–18/09).
+    # Mesmo funil/etapa das turmas anteriores — só muda a tag de campanha.
+    "claude-pro-setembro-2026": {
+        "product_label": "Curso Claude Pro",
+        "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"
+        "deal_stage_id": "6487550c634ed10022505f1a",  # "Aguardando atendimento"
+        "deal_name_tpl": "LP - Curso Claude [{channel_label}] — {name}",
+        "tags":          [
+            "origem:LP-Curso-Claude",
+            "lp:claude-pro",
+            "campanha:setembro-2026",
         ],
         "custom_fields": {},
     },
