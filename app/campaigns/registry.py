@@ -105,6 +105,20 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
         ],
         "custom_fields": {},
     },
+    # Lançamento Novembro/2026 da Formação Claude Pro (Turma 6, 23–27/11).
+    # Nova vaga Engaged (irihaohzhc), turma_id 175459. Mesmo funil/etapa.
+    "claude-pro-novembro-2026": {
+        "product_label": "Curso Claude Pro",
+        "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"
+        "deal_stage_id": "6487550c634ed10022505f1a",  # "Aguardando atendimento"
+        "deal_name_tpl": "LP - Curso Claude [{channel_label}] — {name}",
+        "tags":          [
+            "origem:LP-Curso-Claude",
+            "lp:claude-pro",
+            "campanha:novembro-2026",
+        ],
+        "custom_fields": {},
+    },
     # Lançamento Junho/2026 do Código Zero (Python, IA e Automação p/ Não Programadores)
     # LEGADO: turma remarcada para 03/08/2026 — a LP agora envia
     # "codigozero-agosto-2026". Entrada mantida por compat com leads em voo.
