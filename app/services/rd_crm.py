@@ -69,34 +69,91 @@ def _phone_variants(phone: str) -> list[str]:
 # Read: find contact
 # ─────────────────────────────────────────────────────────────────────────────
 
-async def find_contact_by_phone(client: httpx.AsyncClient, phone: str) -> Optional[dict]:
+def _extract_contacts(data) -> list[dict]:
+    contacts = data.get("contacts", data) if isinstance(data, dict) else data
+    return [c for c in contacts if isinstance(c, dict)] if isinstance(contacts, list) else []
+
+
+def _contact_emails(contact: dict) -> set[str]:
+    out = set()
+    for e in contact.get("emails") or []:
+        val = (e.get("email") if isinstance(e, dict) else e) or ""
+        if val.strip():
+            out.add(val.strip().lower())
+    return out
+
+
+def _contact_phones(contact: dict) -> set[str]:
+    """Telefones do contato normalizados (55 + DDD + número)."""
+    out = set()
+    for p in contact.get("phones") or []:
+        val = (p.get("phone") if isinstance(p, dict) else p) or ""
+        norm = _normalize_phone(val)
+        if norm:
+            out.add(norm)
+    return out
+
+
+def _pick_by_email(contacts: list[dict], email: str, phone: Optional[str]) -> Optional[dict]:
+    """
+    Só aceita contato que REALMENTE tem o e-mail pesquisado (a API v1 pode
+    devolver resultados fora do filtro). Se houver vários, prefere o que também
+    tem o telefone do lead.
+    """
+    target = email.strip().lower()
+    matches = [c for c in contacts if target in _contact_emails(c)]
+    if not matches:
+        return None
+    if phone:
+        for c in matches:
+            if phone in _contact_phones(c):
+                return c
+    return matches[0]
+
+
+def _pick_by_phone(contacts: list[dict], phone: str, email: Optional[str]) -> Optional[dict]:
+    """
+    Só aceita contato que REALMENTE tem o telefone pesquisado. Se o lead trouxe
+    e-mail, ignora contatos com OUTRO e-mail (telefone compartilhado = outra
+    pessoa; não podemos pendurar o negócio nela). Prefere contato sem e-mail.
+    """
+    matches = [c for c in contacts if phone in _contact_phones(c)]
+    if not email:
+        return matches[0] if matches else None
+    target = email.strip().lower()
+    compatible = [c for c in matches if not _contact_emails(c) or target in _contact_emails(c)]
+    return compatible[0] if compatible else None
+
+
+async def find_contact_by_phone(
+    client: httpx.AsyncClient, phone: str, email: Optional[str] = None
+) -> Optional[dict]:
     if not phone:
         return None
-    for variant in _phone_variants(phone):
+    norm = _normalize_phone(phone)
+    for variant in _phone_variants(norm):
         try:
             r = await client.get(f"{_BASE}/contacts", params=_params({"phone": variant}))
             if r.status_code != 200:
                 continue
-            data = r.json()
-            contacts = data.get("contacts", data) if isinstance(data, dict) else data
-            if contacts and isinstance(contacts, list) and contacts:
-                return contacts[0]
+            found = _pick_by_phone(_extract_contacts(r.json()), norm, email)
+            if found:
+                return found
         except Exception as e:
             logger.warning(f"[RD CRM] find_contact_by_phone falhou variant={variant}: {e}")
     return None
 
 
-async def find_contact_by_email(client: httpx.AsyncClient, email: str) -> Optional[dict]:
+async def find_contact_by_email(
+    client: httpx.AsyncClient, email: str, phone: Optional[str] = None
+) -> Optional[dict]:
     if not email:
         return None
     try:
-        r = await client.get(f"{_BASE}/contacts", params=_params({"email": email}))
+        r = await client.get(f"{_BASE}/contacts", params=_params({"email": email.strip()}))
         if r.status_code != 200:
             return None
-        data = r.json()
-        contacts = data.get("contacts", data) if isinstance(data, dict) else data
-        if contacts and isinstance(contacts, list) and contacts:
-            return contacts[0]
+        return _pick_by_email(_extract_contacts(r.json()), email, _normalize_phone(phone) if phone else None)
     except Exception as e:
         logger.warning(f"[RD CRM] find_contact_by_email falhou email={email}: {e}")
     return None
@@ -376,7 +433,7 @@ async def upsert_contact_and_create_deal(
     description: Optional[str] = None,
 ) -> dict:
     """
-    Garante contato (busca por phone, depois email; cria se necessário) e cria deal.
+    Garante contato (busca por e-mail, depois telefone compatível; cria se necessário) e cria deal.
     Se o contato já existir mas estiver sem name/email/phone, faz PATCH para
     incrementar com os dados que vieram do form (sem sobrescrever existentes).
 
@@ -390,11 +447,13 @@ async def upsert_contact_and_create_deal(
     norm_phone = _normalize_phone(phone) if phone else None
 
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        # E-mail primeiro (identifica a pessoa); telefone só como fallback e
+        # nunca casando com contato que tenha outro e-mail.
         contact = None
-        if norm_phone:
-            contact = await find_contact_by_phone(client, norm_phone)
-        if not contact and email:
-            contact = await find_contact_by_email(client, email)
+        if email:
+            contact = await find_contact_by_email(client, email, norm_phone)
+        if not contact and norm_phone:
+            contact = await find_contact_by_phone(client, norm_phone, email)
 
         if not contact:
             contact = await create_contact(client, name=name, email=email, phone=norm_phone)
