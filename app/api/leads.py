@@ -46,6 +46,34 @@ def _resolve_custom_fields(template: dict, lead: LeadIn) -> dict:
     return {k: _interpolate(v, lead) for k, v in (template or {}).items()}
 
 
+# Campos conhecidos de `extra`, com o rótulo que o vendedor vê no negócio.
+# Campos fora destas listas continuam aparecendo em "OUTROS DADOS".
+_EXTRA_INTERESSE = (
+    ("produto", "Curso"),
+    ("para", "É para"),
+    ("empresa", "Empresa"),
+    ("cargo", "Cargo"),
+    ("modalidade", "Modalidade"),
+    ("turma_descricao", "Turma escolhida"),
+    ("turma", "Código da turma"),
+    ("turno", "Turno"),
+    ("mensagem", "Mensagem"),
+)
+_EXTRA_RASTREIO = (
+    ("landing_page", "Página"),
+    ("referrer", "Veio de"),
+    ("primeiro_toque", "Primeiro contato (UTM)"),
+    ("gclid", "gclid (Google Ads)"),
+    ("gbraid", "gbraid (Google Ads)"),
+    ("wbraid", "wbraid (Google Ads)"),
+    ("fbclid", "fbclid (Meta)"),
+    ("fbc", "_fbc (Meta)"),
+    ("fbp", "_fbp (Meta)"),
+    ("utm_id", "utm_id"),
+    ("event_id", "ID do evento"),
+)
+
+
 def _build_lead_description(lead: LeadIn, cfg: dict | None = None) -> str:
     """
     Texto que vai como `description` do Deal no RD CRM. Vendedor abre o Deal
@@ -78,10 +106,18 @@ def _build_lead_description(lead: LeadIn, cfg: dict | None = None) -> str:
         if lead.utm.content:  lines.append(f"  content:  {lead.utm.content}")
         if lead.utm.term:     lines.append(f"  term:     {lead.utm.term}")
     if lead.extra:
-        clean = {k: v for k, v in lead.extra.items() if v}
+        clean = {k: v for k, v in lead.extra.items() if v not in (None, "", [], {})}
+        # Interesse primeiro (o que o vendedor usa no contato), depois o
+        # rastreamento (para atribuição), e qualquer outro campo por último.
+        for titulo, campos in (("INTERESSE", _EXTRA_INTERESSE), ("RASTREAMENTO", _EXTRA_RASTREIO)):
+            linhas = [f"  {rotulo}: {clean.pop(chave)}" for chave, rotulo in campos if chave in clean]
+            if linhas:
+                lines.append("")
+                lines.append(titulo)
+                lines.extend(linhas)
         if clean:
             lines.append("")
-            lines.append("EXTRA")
+            lines.append("OUTROS DADOS")
             for k, v in clean.items():
                 lines.append(f"  {k}: {v}")
     return "\n".join(lines)

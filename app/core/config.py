@@ -7,6 +7,9 @@ _BASELINE_ORIGINS = [
     "https://corporate.technowhub.ai",
     "https://ia-corporate.technowhub.ai",
     "https://www.impacta.com.br",
+    # Origem das páginas de oferta (Cloudflare Pages), servidas em
+    # www.impacta.com.br/ofertas/ por proxy; a origem também é testada direto.
+    "https://ofertas.technowhub.ai",
     "https://impacta.com.br",
 ]
 
