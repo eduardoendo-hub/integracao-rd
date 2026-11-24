@@ -12,6 +12,49 @@ Os IDs de pipeline e stage podem ser descobertos com:
 
 Quando uma nova LP entrar no ar, basta adicionar uma entrada aqui — sem alterar código
 de serviço.
+
+Páginas de oferta (www.impacta.com.br/ofertas/<oferta>) + RD Station Marketing
+------------------------------------------------------------------------------
+Além do negócio no RD CRM, uma campanha pode registrar uma **conversão** no RD
+Marketing (serviço `app/services/rd_marketing.py`). Um fluxo de automação do RD
+Marketing com entrada "conversão `oferta-<oferta>`" manda o e-mail de
+agradecimento e chama o webhook do RD Conversas (template de WhatsApp + fila).
+
+Chaves opcionais por campanha:
+  - "oferta":       código estável da oferta, igual ao caminho da página
+                    (ex.: "formacao-excel"). Não muda de turma para turma.
+  - "rd_marketing": {"conversion_identifier": "oferta-<oferta>[-empresa]",
+                     "tags": ["oferta-<oferta>", ...]}  (tags em minúsculas)
+                    Sem este bloco a conversão NÃO é enviada (LPs antigas,
+                    como as do Curso Claude, continuam iguais).
+
+Para cadastrar uma oferta nova (ex.: Power BI), copie as duas entradas do Excel:
+
+    "formacao-power-bi": {
+        "oferta": "formacao-power-bi",
+        "product_label": "Formação Power BI",
+        "funnel_id":     "6487550c634ed10022505f19",  # B2C - Treinamentos
+        "deal_stage_id": "6487550c634ed10022505f1a",  # Aguardando atendimento
+        "deal_name_tpl": "LP - Formação Power BI [{channel_label}] — {name}",
+        "tags": ["origem:LP-Formacao-Power-BI", "lp:formacao-power-bi",
+                 "oferta:formacao-power-bi"],
+        "custom_fields": {},
+        "rd_marketing": {
+            "conversion_identifier": "oferta-formacao-power-bi",
+            "tags": ["oferta-formacao-power-bi"],
+        },
+    },
+    "formacao-power-bi-empresa": {  # "É para minha empresa" → B2B - Corporativo
+        "oferta": "formacao-power-bi",
+        ...  # funnel_id/deal_stage_id do B2B, como em formacao-excel-empresa
+        "rd_marketing": {
+            "conversion_identifier": "oferta-formacao-power-bi-empresa",
+            "tags": ["oferta-formacao-power-bi", "b2b"],
+        },
+    },
+
+e no RD Marketing crie o fluxo de automação com entrada nas conversões
+`oferta-formacao-power-bi` e `oferta-formacao-power-bi-empresa`.
 """
 
 from typing import Optional
@@ -203,6 +246,7 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
     # negócio e o vendedor trata no funil. "-empresa" = "É para minha empresa"
     # no formulário → funil B2B - Corporativo.
     "formacao-excel": {
+        "oferta":        "formacao-excel",
         "product_label": "Formação Excel com IA e Copilot",
         "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"
         "deal_stage_id": "6487550c634ed10022505f1a",  # "Aguardando atendimento"
@@ -213,8 +257,14 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
             "oferta:formacao-excel",
         ],
         "custom_fields": {},
+        # Conversão no RD Marketing → e-mail de agradecimento + WhatsApp (RD Conversas).
+        "rd_marketing": {
+            "conversion_identifier": "oferta-formacao-excel",
+            "tags": ["oferta-formacao-excel"],
+        },
     },
     "formacao-excel-empresa": {
+        "oferta":        "formacao-excel",
         "product_label": "Formação Excel com IA e Copilot (empresa)",
         "funnel_id":     "6894b0eb767596001722fd1f",  # "B2B - Corporativo"
         "deal_stage_id": "6894b0eb767596001722fd21",  # "Aguardando Atendimento"
@@ -226,6 +276,10 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
             "b2b",
         ],
         "custom_fields": {},
+        "rd_marketing": {
+            "conversion_identifier": "oferta-formacao-excel-empresa",
+            "tags": ["oferta-formacao-excel", "b2b"],
+        },
     },
     # Página de IA Corporativa — ia-corporate / impacta.com.br/ia-corporate.
     "corporativo-ia": {
