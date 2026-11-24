@@ -11,6 +11,8 @@ _BASELINE_ORIGINS = [
     # www.impacta.com.br/ofertas/ por proxy; a origem também é testada direto.
     "https://ofertas.technowhub.ai",
     "https://impacta.com.br",
+    # LP do Curso Claude (domínio público); a origem claude.technowhub.ai vem do env.
+    "https://claude.impacta.com.br",
 ]
 
 
