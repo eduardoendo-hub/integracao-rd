@@ -1,11 +1,11 @@
 import logging
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
 
 from app.campaigns.registry import get_campaign
 from app.core.config import settings
 from app.models.lead import LeadIn, LeadOut, WhatsAppClickIn
-from app.services import iris_webhook, rd_crm
+from app.services import iris_webhook, rd_crm, rd_marketing
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -124,8 +124,12 @@ def _build_lead_description(lead: LeadIn, cfg: dict | None = None) -> str:
 
 
 @router.post("/leads", response_model=LeadOut)
-async def create_lead(lead: LeadIn) -> LeadOut:
-    """Recebe um Lead de qualquer LP, cria Contact+Deal no RD CRM e notifica o IRIS."""
+async def create_lead(lead: LeadIn, background_tasks: BackgroundTasks) -> LeadOut:
+    """
+    Recebe um Lead de qualquer LP, cria Contact+Deal no RD CRM e notifica o IRIS.
+    Se a campanha tiver o bloco `rd_marketing` no registry, registra também uma
+    conversão no RD Station Marketing (em segundo plano, depois da resposta).
+    """
     cfg = get_campaign(lead.campaign_slug)
     if not cfg:
         raise HTTPException(status_code=404, detail=f"Campanha desconhecida: {lead.campaign_slug}")
@@ -168,6 +172,11 @@ async def create_lead(lead: LeadIn) -> LeadOut:
         f"[lead] campaign={lead.campaign_slug} status={result['status']} "
         f"contact_id={result['contact_id']} deal_id={result['deal_id']}"
     )
+
+    # Conversão no RD Marketing (e-mail de agradecimento + WhatsApp via fluxo de
+    # automação). Roda depois da resposta; falhas viram só log, sem dados pessoais.
+    if cfg.get("rd_marketing"):
+        background_tasks.add_task(rd_marketing.send_conversion, lead, cfg)
 
     return LeadOut(**result)
 

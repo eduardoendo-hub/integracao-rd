@@ -2,7 +2,9 @@
 
 Microserviço HTTP reutilizável que recebe leads de qualquer landing page da Impacta e cria
 **Contact + Deal** no funil correto do **RD CRM** (vendas), retornando o `deal_id`. Encaminha
-um webhook ao **IRIS** para alimentar o dashboard real-time.
+um webhook ao **IRIS** para alimentar o dashboard real-time. Nas páginas de oferta, registra
+também uma **conversão no RD Station Marketing**, que dispara o e-mail de agradecimento e o
+WhatsApp ativo (RD Conversas) por fluxo de automação.
 
 Uma instância serve **todas as LPs** — a campanha de destino é selecionada por `campaign_slug`
 no body da requisição, com configuração por campanha em `app/campaigns/registry.py`.
@@ -16,7 +18,7 @@ no body da requisição, com configuração por campanha em `app/campaigns/regis
 
 | Método | Path | Descrição |
 |---|---|---|
-| POST | `/api/leads` | Cria/atualiza Contact + Deal no RD CRM. Encaminha evento ao IRIS. |
+| POST | `/api/leads` | Cria/atualiza Contact + Deal no RD CRM. Encaminha evento ao IRIS. Se a campanha tiver o bloco `rd_marketing`, registra a conversão no RD Marketing em segundo plano. |
 | POST | `/api/leads/whatsapp-click` | Registra clique em WhatsApp (sem criar deal). Encaminha ao IRIS. |
 | GET | `/api/campaigns/{slug}` | Devolve a config de uma campanha (debug). |
 | GET | `/api/healthz` | Healthcheck para o Coolify. |
@@ -61,6 +63,27 @@ curl "https://crm.rdstation.com/api/v1/deal_pipelines?token=$RD_CRM_TOKEN"
 curl "https://crm.rdstation.com/api/v1/deal_stages?token=$RD_CRM_TOKEN"
 ```
 
+## Conversão no RD Station Marketing (páginas de oferta)
+
+Fluxo de cada lead em `/api/leads`:
+
+1. Cria contato + negócio no RD CRM (funil/etapa do registry).
+2. Emite `lead.created` para o IRIS.
+3. **Se a campanha tiver o bloco `rd_marketing`**, depois da resposta ao navegador (BackgroundTasks)
+   faz `POST https://api.rd.services/platform/conversions?api_key=$RDSM_API_KEY` com
+   `conversion_identifier` (ex.: `oferta-formacao-excel`), nome, e-mail, celular (`+55DDDNÚMERO`),
+   UTMs (`traffic_source/medium/campaign/value`), tags e base legal.
+4. No RD Marketing, um fluxo de automação com entrada "conversão `oferta-<oferta>`" manda o e-mail
+   de agradecimento e chama o webhook do RD Conversas (template de WhatsApp + fila).
+
+Regras: sem `RDSM_API_KEY` o passo é um no-op com log; campanha sem o bloco não envia; lead sem
+e-mail não envia; falha do RD Marketing nunca muda a resposta 200 e vira só log (slug + status, sem
+e-mail/telefone). Uma retentativa em 5xx/timeout.
+
+Oferta nova (ex.: Power BI): copiar as entradas `formacao-excel` / `formacao-excel-empresa` do
+registry (instruções no topo de `app/campaigns/registry.py`) e criar o fluxo no RD Marketing com as
+conversões `oferta-formacao-power-bi` e `oferta-formacao-power-bi-empresa`.
+
 ## Variáveis de ambiente
 
 Veja `.env.example`. Mínimo para rodar:
@@ -72,6 +95,9 @@ Veja `.env.example`. Mínimo para rodar:
 | `IRIS_WEBHOOK_SECRET` | não | Segredo HMAC compartilhado com o IRIS |
 | `ALLOWED_ORIGINS` | sim | Lista CSV de origens CORS — ex. `https://impacta.com.br,https://www.impacta.com.br` |
 | `LOG_LEVEL` | não | `INFO` (default) · `DEBUG` para troubleshooting |
+| `RDSM_API_KEY` | não | Token **público** da API de conversões do RD Station Marketing. Vazio = conversão desligada (no-op com log). |
+| `RDSM_LEGAL_BASIS_TYPE` | não | Tipo da base legal de comunicações enviada na conversão. Default `pre_existent_contract` (o lead pediu informações). |
+| `RDSM_CUSTOM_FIELDS` | não | CSV dos campos personalizados que podem ser enviados — só os que já existem no RD Marketing. Suportados: `cf_oferta_curso`, `cf_oferta_modalidade`, `cf_oferta_turma`, `cf_oferta_link`. Default vazio. |
 
 ## Rodar localmente
 
