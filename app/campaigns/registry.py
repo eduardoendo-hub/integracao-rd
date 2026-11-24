@@ -198,6 +198,35 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
         ],
         "custom_fields": {},
     },
+    # Páginas de oferta da Tech Now (www.impacta.com.br/ofertas/<nome>).
+    # Um código por OFERTA, sem mês/turma: a turma escolhida vai nos dados do
+    # negócio e o vendedor trata no funil. "-empresa" = "É para minha empresa"
+    # no formulário → funil B2B - Corporativo.
+    "formacao-excel": {
+        "product_label": "Formação Excel com IA e Copilot",
+        "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"
+        "deal_stage_id": "6487550c634ed10022505f1a",  # "Aguardando atendimento"
+        "deal_name_tpl": "LP - Formação Excel [{channel_label}] — {name}",
+        "tags":          [
+            "origem:LP-Formacao-Excel",
+            "lp:formacao-excel",
+            "oferta:formacao-excel",
+        ],
+        "custom_fields": {},
+    },
+    "formacao-excel-empresa": {
+        "product_label": "Formação Excel com IA e Copilot (empresa)",
+        "funnel_id":     "6894b0eb767596001722fd1f",  # "B2B - Corporativo"
+        "deal_stage_id": "6894b0eb767596001722fd21",  # "Aguardando Atendimento"
+        "deal_name_tpl": "LP - Formação Excel · Empresa [{channel_label}] — {name}",
+        "tags":          [
+            "origem:LP-Formacao-Excel",
+            "lp:formacao-excel",
+            "oferta:formacao-excel",
+            "b2b",
+        ],
+        "custom_fields": {},
+    },
     # Página de IA Corporativa — ia-corporate / impacta.com.br/ia-corporate.
     "corporativo-ia": {
         "product_label": "IA Corporativa",
