@@ -209,3 +209,15 @@ def test_falha_do_rd_marketing_nao_afeta_resposta(rec, fake_crm, falha, caplog):
     assert r.json() == {"deal_id": "d1", "contact_id": "c1", "status": "created"}
     assert "campaign=formacao-excel" in caplog.text
     assert "maria.teste@example.com" not in caplog.text
+
+
+def test_power_bi_conversoes_proprias(rec):
+    """Power BI tem conversões próprias no RD Marketing (fluxos separados do Excel)."""
+    assert _send("formacao-power-bi") is True
+    p = json.loads(rec.requests[0].content)["payload"]
+    assert p["conversion_identifier"] == "oferta-formacao-power-bi"
+    assert p["tags"] == ["oferta-formacao-power-bi"]
+    assert _send("formacao-power-bi-empresa") is True
+    p = json.loads(rec.requests[1].content)["payload"]
+    assert p["conversion_identifier"] == "oferta-formacao-power-bi-empresa"
+    assert p["tags"] == ["oferta-formacao-power-bi", "b2b"]

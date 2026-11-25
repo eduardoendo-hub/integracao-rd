@@ -81,3 +81,31 @@ def test_description_groups_extra():
     assert "RASTREAMENTO" in d and "gclid (Google Ads): abc" in d
     assert "OUTROS DADOS" in d and "campo_novo: x" in d
     assert "vazio" not in d
+
+
+def test_formacao_power_bi_campaigns():
+    """Power BI espelha o Excel: B2C pessoa, B2B empresa, mesma regra de tags."""
+    pessoa = client.get("/api/campaigns/formacao-power-bi")
+    empresa = client.get("/api/campaigns/formacao-power-bi-empresa")
+    assert pessoa.status_code == 200 and empresa.status_code == 200
+    pessoa, empresa = pessoa.json(), empresa.json()
+    excel = client.get("/api/campaigns/formacao-excel").json()
+    excel_emp = client.get("/api/campaigns/formacao-excel-empresa").json()
+    assert pessoa["oferta"] == empresa["oferta"] == "formacao-power-bi"
+    assert (pessoa["funnel_id"], pessoa["deal_stage_id"]) == (excel["funnel_id"], excel["deal_stage_id"])
+    assert (empresa["funnel_id"], empresa["deal_stage_id"]) == (excel_emp["funnel_id"], excel_emp["deal_stage_id"])
+    assert "LP - Formação Power BI" in pessoa["deal_name_tpl"]
+    assert "Empresa" in empresa["deal_name_tpl"]
+    assert "oferta:formacao-power-bi" in pessoa["tags"]
+    assert "b2b" in empresa["tags"] and "b2b" not in pessoa["tags"]
+    assert pessoa["rd_marketing"]["conversion_identifier"] == "oferta-formacao-power-bi"
+    assert empresa["rd_marketing"]["conversion_identifier"] == "oferta-formacao-power-bi-empresa"
+
+
+def test_cors_www_impacta_origin():
+    """A página em www.impacta.com.br/ofertas/ chama a integração direto do navegador."""
+    r = client.options("/api/leads", headers={
+        "Origin": "https://www.impacta.com.br",
+        "Access-Control-Request-Method": "POST",
+    })
+    assert r.headers.get("access-control-allow-origin") == "https://www.impacta.com.br"

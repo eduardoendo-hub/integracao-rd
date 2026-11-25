@@ -28,33 +28,11 @@ Chaves opcionais por campanha:
                     Sem este bloco a conversão NÃO é enviada (LPs antigas,
                     como as do Curso Claude, continuam iguais).
 
-Para cadastrar uma oferta nova (ex.: Power BI), copie as duas entradas do Excel:
-
-    "formacao-power-bi": {
-        "oferta": "formacao-power-bi",
-        "product_label": "Formação Power BI",
-        "funnel_id":     "6487550c634ed10022505f19",  # B2C - Treinamentos
-        "deal_stage_id": "6487550c634ed10022505f1a",  # Aguardando atendimento
-        "deal_name_tpl": "LP - Formação Power BI [{channel_label}] — {name}",
-        "tags": ["origem:LP-Formacao-Power-BI", "lp:formacao-power-bi",
-                 "oferta:formacao-power-bi"],
-        "custom_fields": {},
-        "rd_marketing": {
-            "conversion_identifier": "oferta-formacao-power-bi",
-            "tags": ["oferta-formacao-power-bi"],
-        },
-    },
-    "formacao-power-bi-empresa": {  # "É para minha empresa" → B2B - Corporativo
-        "oferta": "formacao-power-bi",
-        ...  # funnel_id/deal_stage_id do B2B, como em formacao-excel-empresa
-        "rd_marketing": {
-            "conversion_identifier": "oferta-formacao-power-bi-empresa",
-            "tags": ["oferta-formacao-power-bi", "b2b"],
-        },
-    },
-
-e no RD Marketing crie o fluxo de automação com entrada nas conversões
-`oferta-formacao-power-bi` e `oferta-formacao-power-bi-empresa`.
+Para cadastrar uma oferta nova, copie as duas entradas de uma oferta existente
+(formacao-excel / formacao-excel-empresa ou formacao-power-bi / -empresa),
+troque o código da oferta, o product_label, o nome do negócio e as tags,
+e no RD Marketing crie os fluxos de automação com entrada nas conversões
+`oferta-<oferta>` e `oferta-<oferta>-empresa`.
 """
 
 from typing import Optional
@@ -279,6 +257,44 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
         "rd_marketing": {
             "conversion_identifier": "oferta-formacao-excel-empresa",
             "tags": ["oferta-formacao-excel", "b2b"],
+        },
+    },
+    # Formação Power BI com IA e Copilot (www.impacta.com.br/ofertas/formacao-power-bi).
+    # Espelho exato do Excel: mesmo funil/etapa, mesmas regras de tag e conversão
+    # no RD Marketing própria (fluxos "[Ofertas] Formação Power BI – Agradecimento").
+    "formacao-power-bi": {
+        "oferta":        "formacao-power-bi",
+        "product_label": "Formação Power BI com IA e Copilot",
+        "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"
+        "deal_stage_id": "6487550c634ed10022505f1a",  # "Aguardando atendimento"
+        "deal_name_tpl": "LP - Formação Power BI [{channel_label}] — {name}",
+        "tags":          [
+            "origem:LP-Formacao-Power-BI",
+            "lp:formacao-power-bi",
+            "oferta:formacao-power-bi",
+        ],
+        "custom_fields": {},
+        "rd_marketing": {
+            "conversion_identifier": "oferta-formacao-power-bi",
+            "tags": ["oferta-formacao-power-bi"],
+        },
+    },
+    "formacao-power-bi-empresa": {
+        "oferta":        "formacao-power-bi",
+        "product_label": "Formação Power BI com IA e Copilot (empresa)",
+        "funnel_id":     "6894b0eb767596001722fd1f",  # "B2B - Corporativo"
+        "deal_stage_id": "6894b0eb767596001722fd21",  # "Aguardando Atendimento"
+        "deal_name_tpl": "LP - Formação Power BI · Empresa [{channel_label}] — {name}",
+        "tags":          [
+            "origem:LP-Formacao-Power-BI",
+            "lp:formacao-power-bi",
+            "oferta:formacao-power-bi",
+            "b2b",
+        ],
+        "custom_fields": {},
+        "rd_marketing": {
+            "conversion_identifier": "oferta-formacao-power-bi-empresa",
+            "tags": ["oferta-formacao-power-bi", "b2b"],
         },
     },
     # Página de IA Corporativa — ia-corporate / impacta.com.br/ia-corporate.
