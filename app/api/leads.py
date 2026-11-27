@@ -181,14 +181,30 @@ async def create_lead(lead: LeadIn, background_tasks: BackgroundTasks) -> LeadOu
     return LeadOut(**result)
 
 
+# Campos de atribuição do clique que seguem para o IRIS (o resto do `extra` fica de fora).
+_ATRIBUICAO_WHATS = (
+    "canal", "canal_primeiro", "primeiro_toque", "ultimo_toque", "utm_id", "adgroup", "utm_placement",
+    "matchtype", "network", "gclid", "gbraid", "wbraid", "fbclid", "msclkid", "clique_tipo", "landing_page",
+)
+
+
 @router.post("/leads/whatsapp-click")
 async def whatsapp_click(payload: WhatsAppClickIn) -> dict:
-    """Apenas registra o clique no WhatsApp e notifica o IRIS — não cria deal."""
+    """Apenas registra o clique no WhatsApp e notifica o IRIS — não cria deal.
+
+    O IRIS guarda o pacote inteiro (Lead.rawJson). O wa_ref liga a conversa do WhatsApp ao clique;
+    do `extra` vão só os campos de atribuição (sem fbc/fbp/ga_client_id).
+    """
+    atribuicao = {k: payload.extra.get(k) for k in _ATRIBUICAO_WHATS if payload.extra.get(k) not in (None, "")}
     iris_webhook.emit("whatsapp.click", {
         "campaign_slug": payload.campaign_slug,
         "phone": payload.phone,
         "source_page": payload.source_page,
         "utm": payload.utm.model_dump() if payload.utm else None,
+        "wa_ref": payload.wa_ref,
+        "placement": payload.placement,
+        "oferta": payload.oferta,
+        "atribuicao": atribuicao,
     })
     return {"status": "ok"}
 
