@@ -235,6 +235,50 @@ async def update_contact_if_missing(
         logger.warning(f"[RD CRM] Falha ao atualizar contato {contact_id}: {e}")
 
 
+def _source_campaign_payload(deal_source_id: Optional[str], campaign_id: Optional[str]) -> dict:
+    out: dict = {}
+    if deal_source_id:
+        out["deal_source"] = {"_id": deal_source_id}
+    if campaign_id:
+        out["campaign"] = {"_id": campaign_id}
+    return out
+
+
+def _ref_id(obj) -> Optional[str]:
+    if isinstance(obj, dict):
+        return obj.get("_id") or obj.get("id")
+    return obj if isinstance(obj, str) else None
+
+
+async def set_deal_source_and_campaign(
+    client: httpx.AsyncClient,
+    *,
+    deal_id: str,
+    deal_envelope: Optional[dict],
+    deal_source_id: Optional[str],
+    campaign_id: Optional[str],
+) -> None:
+    """Garante Fonte/Campanha no negócio. Se o POST /deals já gravou, não faz nada;
+    senão faz PUT /deals/{id}. Falha vira só log (o lead já foi criado)."""
+    if not (deal_source_id or campaign_id):
+        return
+    env = deal_envelope if isinstance(deal_envelope, dict) else {}
+    ok_source = not deal_source_id or _ref_id(env.get("deal_source")) == deal_source_id
+    ok_campaign = not campaign_id or _ref_id(env.get("campaign")) == campaign_id
+    if ok_source and ok_campaign:
+        return
+    payload = {"deal": {}}
+    payload.update(_source_campaign_payload(deal_source_id, campaign_id))
+    try:
+        r = await client.put(f"{_BASE}/deals/{deal_id}", params=_params(), json=payload)
+        if r.status_code in (200, 201, 204):
+            logger.info(f"[RD CRM] Deal {deal_id}: fonte/campanha gravadas via PUT")
+        else:
+            logger.warning(f"[RD CRM] PUT /deals/{deal_id} (fonte/campanha) retornou {r.status_code}: {r.text[:200]}")
+    except Exception as e:
+        logger.warning(f"[RD CRM] Falha ao gravar fonte/campanha no deal {deal_id}: {e}")
+
+
 async def create_deal(
     client: httpx.AsyncClient,
     *,
@@ -244,9 +288,15 @@ async def create_deal(
     custom_fields: Optional[dict] = None,
     tags: Optional[list[str]] = None,
     description: Optional[str] = None,
+    deal_source_id: Optional[str] = None,
+    campaign_id: Optional[str] = None,
 ) -> Optional[dict]:
     """
     Cria deal no funil/etapa configurados.
+
+    `deal_source_id` / `campaign_id` (opcionais) marcam a Fonte e a Campanha do
+    negócio no RD CRM. As páginas de oferta usam isso para o marketing achar os
+    negócios mesmo depois de o vendedor renomear (o nome muda; fonte e campanha não).
 
     O endpoint `POST /deals` exige um payload aninhado:
       {
@@ -279,6 +329,8 @@ async def create_deal(
         "deal":     deal_obj,
         "contacts": [{"_id": contact_id}],
     }
+    # RD CRM v1: campaign e deal_source também vão TOP-LEVEL ({"_id": ...}).
+    payload.update(_source_campaign_payload(deal_source_id, campaign_id))
 
     try:
         r = await client.post(f"{_BASE}/deals", params=_params(), json=payload)
@@ -431,6 +483,8 @@ async def upsert_contact_and_create_deal(
     custom_fields: Optional[dict] = None,
     tags: Optional[list[str]] = None,
     description: Optional[str] = None,
+    deal_source_id: Optional[str] = None,
+    campaign_id: Optional[str] = None,
 ) -> dict:
     """
     Garante contato (busca por e-mail, depois telefone compatível; cria se necessário) e cria deal.
@@ -482,6 +536,8 @@ async def upsert_contact_and_create_deal(
             custom_fields=custom_fields,
             tags=tags,
             description=description,
+            deal_source_id=deal_source_id,
+            campaign_id=campaign_id,
         )
         # O RD CRM v1 retorna o deal com diferentes formatos de envelope.
         # Buscamos tanto top-level quanto em data["deal"].
@@ -495,6 +551,15 @@ async def upsert_contact_and_create_deal(
         # ignora 'contacts' no payload no RD CRM v1 (testado: nunca cria vinculo).
         if deal_id and contact_id:
             await link_contact_to_deal(client, deal_id=deal_id, contact_id=contact_id)
+
+        if deal_id:
+            await set_deal_source_and_campaign(
+                client,
+                deal_id=deal_id,
+                deal_envelope=deal_envelope,
+                deal_source_id=deal_source_id,
+                campaign_id=campaign_id,
+            )
 
         # SEMPRE criar deal_note com a description — o campo 'note' no payload
         # do POST /deals tambem e' ignorado. /deal_notes e' o endpoint dedicado.

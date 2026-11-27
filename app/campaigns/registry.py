@@ -23,6 +23,11 @@ agradecimento e chama o webhook do RD Conversas (template de WhatsApp + fila).
 Chaves opcionais por campanha:
   - "oferta":       código estável da oferta, igual ao caminho da página
                     (ex.: "formacao-excel"). Não muda de turma para turma.
+  - "rd_source_id" / "rd_campaign_id": IDs da Fonte e da Campanha do RD CRM
+                    gravadas no negócio (as rotinas de marketing acham os negócios
+                    da página por elas, mesmo depois de renomeados). Todas as
+                    ofertas usam a Fonte "Página de oferta (Tech Now)"; cada
+                    oferta tem a sua Campanha "[TN] Oferta - <nome>".
   - "rd_marketing": {"conversion_identifier": "oferta-<oferta>[-empresa]",
                      "tags": ["oferta-<oferta>", ...]}  (tags em minúsculas)
                     Sem este bloco a conversão NÃO é enviada (LPs antigas,
@@ -225,6 +230,9 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
     # no formulário → funil B2B - Corporativo.
     "formacao-excel": {
         "oferta":        "formacao-excel",
+        # Fonte e Campanha do negócio no RD CRM: ficam mesmo quando o vendedor renomeia.
+        "rd_source_id":   "6b099eeb48755b0022513d17",  # Fonte "Página de oferta (Tech Now)"
+        "rd_campaign_id": "6b099eec12453d001d538055",  # Campanha "[TN] Oferta - Formação Excel"
         "product_label": "Formação Excel com IA e Copilot",
         "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"
         "deal_stage_id": "6487550c634ed10022505f1a",  # "Aguardando atendimento"
@@ -243,6 +251,9 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
     },
     "formacao-excel-empresa": {
         "oferta":        "formacao-excel",
+        # Fonte e Campanha do negócio no RD CRM: ficam mesmo quando o vendedor renomeia.
+        "rd_source_id":   "6b099eeb48755b0022513d17",  # Fonte "Página de oferta (Tech Now)"
+        "rd_campaign_id": "6b099eec12453d001d538055",  # Campanha "[TN] Oferta - Formação Excel"
         "product_label": "Formação Excel com IA e Copilot (empresa)",
         "funnel_id":     "6894b0eb767596001722fd1f",  # "B2B - Corporativo"
         "deal_stage_id": "6894b0eb767596001722fd21",  # "Aguardando Atendimento"
@@ -264,6 +275,9 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
     # no RD Marketing própria (fluxos "[Ofertas] Formação Power BI – Agradecimento").
     "formacao-power-bi": {
         "oferta":        "formacao-power-bi",
+        # Fonte e Campanha do negócio no RD CRM: ficam mesmo quando o vendedor renomeia.
+        "rd_source_id":   "6b099eeb48755b0022513d17",  # Fonte "Página de oferta (Tech Now)"
+        "rd_campaign_id": "6b099eec65144b001f8904f1",  # Campanha "[TN] Oferta - Formação Power BI"
         "product_label": "Formação Power BI com IA e Copilot",
         "funnel_id":     "6487550c634ed10022505f19",  # "B2C - Treinamentos"
         "deal_stage_id": "6487550c634ed10022505f1a",  # "Aguardando atendimento"
@@ -281,6 +295,9 @@ CAMPAIGNS: dict[str, CampaignConfig] = {
     },
     "formacao-power-bi-empresa": {
         "oferta":        "formacao-power-bi",
+        # Fonte e Campanha do negócio no RD CRM: ficam mesmo quando o vendedor renomeia.
+        "rd_source_id":   "6b099eeb48755b0022513d17",  # Fonte "Página de oferta (Tech Now)"
+        "rd_campaign_id": "6b099eec65144b001f8904f1",  # Campanha "[TN] Oferta - Formação Power BI"
         "product_label": "Formação Power BI com IA e Copilot (empresa)",
         "funnel_id":     "6894b0eb767596001722fd1f",  # "B2B - Corporativo"
         "deal_stage_id": "6894b0eb767596001722fd21",  # "Aguardando Atendimento"
