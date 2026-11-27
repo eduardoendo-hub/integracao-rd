@@ -154,6 +154,8 @@ async def create_lead(lead: LeadIn, background_tasks: BackgroundTasks) -> LeadOu
         custom_fields=custom_fields,
         tags=tags,
         description=description,
+        deal_source_id=cfg.get("rd_source_id"),
+        campaign_id=cfg.get("rd_campaign_id"),
     )
 
     iris_webhook.emit("lead.created", {
