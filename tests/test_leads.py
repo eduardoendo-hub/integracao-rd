@@ -109,3 +109,32 @@ def test_cors_www_impacta_origin():
         "Access-Control-Request-Method": "POST",
     })
     assert r.headers.get("access-control-allow-origin") == "https://www.impacta.com.br"
+
+
+def test_whatsapp_click_repassa_wa_ref(monkeypatch):
+    """O código da mensagem do WhatsApp e a atribuição do clique chegam ao IRIS; fbc/fbp não."""
+    from app.services import iris_webhook
+    enviados = []
+    monkeypatch.setattr(iris_webhook, "emit", lambda ev, payload: enviados.append((ev, payload)))
+    r = client.post("/api/leads/whatsapp-click", json={
+        "campaign_slug": "formacao-power-bi",
+        "source_page": "https://www.impacta.com.br/ofertas/formacao-power-bi?utm_source=meta",
+        "utm": {"source": "meta", "medium": "cpc", "campaign": "powerbi-m2-rmkt"},
+        "wa_ref": "29HCUZ", "placement": "hero", "oferta": "formacao-power-bi", "lead_id": "abc",
+        "extra": {"wa_ref": "29HCUZ", "fbclid": "IwAR123", "clique_tipo": "fbclid", "utm_id": "120",
+                  "fbc": "fb.1.x", "fbp": "fb.1.y", "ga_client_id": "1.2", "gclid": None},
+    })
+    assert r.status_code == 200
+    ev, p = enviados[0]
+    assert ev == "whatsapp.click"
+    assert p["wa_ref"] == "29HCUZ" and p["placement"] == "hero" and p["oferta"] == "formacao-power-bi"
+    assert p["atribuicao"] == {"fbclid": "IwAR123", "clique_tipo": "fbclid", "utm_id": "120"}
+    assert p["utm"]["campaign"] == "powerbi-m2-rmkt"
+
+
+def test_whatsapp_click_sem_wa_ref_continua_ok(monkeypatch):
+    """Página antiga (sem wa_ref/extra) segue funcionando."""
+    from app.services import iris_webhook
+    monkeypatch.setattr(iris_webhook, "emit", lambda ev, payload: None)
+    r = client.post("/api/leads/whatsapp-click", json={"campaign_slug": "claude-pro-dezembro-2026"})
+    assert r.status_code == 200

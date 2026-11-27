@@ -43,3 +43,9 @@ class WhatsAppClickIn(BaseModel):
     phone: Optional[str] = None
     source_page: Optional[str] = None
     utm: Optional[UTM] = None
+    # Código curto que a página põe na mensagem do WhatsApp ("… · cód. 29HCUZ"). Liga a conversa
+    # no RD Conversas ao clique (e às UTMs dele). Ver impacta-ofertas/src/scripts/rastreamento.js.
+    wa_ref: Optional[str] = Field(default=None, max_length=16)
+    placement: Optional[str] = Field(default=None, max_length=64)
+    oferta: Optional[str] = Field(default=None, max_length=64)
+    extra: dict = Field(default_factory=dict)
